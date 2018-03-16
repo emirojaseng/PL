@@ -1,5 +1,5 @@
 function [x0, z0, ban, iter] = mSimplexRobusto(A, b, c)
-%purpose: VersiÛn del Simplex m·s Robusto
+%purpose: Versi√≥n del Simplex m√°s Robusto
 % minimizar c^T x
 % sujeto a Ax <= b , x >= 0 , b en R^m
 %
@@ -7,17 +7,17 @@ function [x0, z0, ban, iter] = mSimplexRobusto(A, b, c)
 % b ... column vector with as many rows as A
 % c ... column vector with as many entries as one row of A
 %
-% Out: xo ... SFB Ûptima del problema
-% zo ... valor Ûptimo del problema
+% Out: xo ... SFB √≥ptima del problema
+% zo ... valor √≥ptimo del problema
 % ban ... indica casos:
 % -1 ... si el conjunto factible es vacio
-% 0 ... si se encontro una soluciÛn Ûptima
-% 1 ... si la funciÛn objectivo no es acotada.
+% 0 ... si se encontro una soluci√≥n √≥ptima
+% 1 ... si la funci√≥n objectivo no es acotada.
 % iter ... es el numero de iteraciones (cambios de variables basicas)
-% que hizo el mÈtodo
+% que hizo el m√©todo
 
 if(all(b>=0)) 
-    %caso trivial, pues 0 est· en el Conjunto Factible
+    %caso trivial, pues 0 est√° en el Conjunto Factible
     [x0, z0, ban, iter]= mSimplexFaseII (A,b,c);
     
 else
@@ -27,9 +27,14 @@ else
     m=sz(1);
     n=sz(2);
     c=[c;zeros(m,1)];
-    %Checa que no haya renglon A(i,:)>0 para cada b(i)<0
-    %falta
-    %
+    
+        % paso 0 Verifica que no haya renglon A(i,:)>=0 con b(i)<0b
+        if(max(all(A(b<0,:)>=0)))
+            x0=NaN;
+            z0=NaN;
+            ban=-1;
+            return
+        end
     
     %paso 1 variables de holgura
     A=[A, eye(m),-ones(m,1)];
@@ -37,7 +42,7 @@ else
     N=[1:n,n+m+1];
     B=n+1:n+m;
     x=zeros(n+m+1,1);
-    x(B)=b; %soluciÛn basica, no factible
+    x(B)=b; %soluci√≥n basica, no factible
     
     %paso 2 x0 entra, x(n+s) sale
     e=n+m+1; %entra x0
@@ -54,33 +59,43 @@ else
     [x, z0, ban, iter, B, N]=FaseII (A,b,z, x, B, N,n,m, iter);
     
     
-    %Checamos los casos
+    %Conclusi√≥n: Checamos los casos
     if(z0==0)
     %x es una SBF para el problema original
-            if(~isempty(find(B==n+m+1, 1)))
-                %Necesitamos cambiar x0 a las variables no b·sicas
-                %cambiamos variable
-            end
-    %Buscamos la soluciÛn del problema original
     
-        N=setdiff(N,[n+m+1]); %Quitamos x0 de los Ìndices
-        [x, z0, ban, iter, B, N]=FaseII (A,b,c, x, B, N,n,m, iter);
+                %C3
+                if(~isempty(find(B==n+m+1, 1)))
+                    %x0 es variable basica, as√≠ que cambiamos variable
+                    s=n+m+1 %sale x0
+                    H= A(:,B)\A;
+                    e=N(find(H(n+m+1,:)~=0)); %entra xe
+                    %se actualizan los √≠ndices
+                    B(B==s)=e;
+                    N(N==e)=s;
+                    iter=iter+1; %se cuenta como una iteraci√≥n
+                end
+    %C1 
+    %Buscamos la soluci√≥n del problema original
+    
+     N=setdiff(N,[n+m+1]); %Quitamos x0 de los √≠ndices
+     [x, z0, ban, iter, B, N]=FaseII (A,b,c, x, B, N,n,m, iter);
 
-            %Quitamos las variables de holgura
-                    i=1;
-                    Baux=B;
-                    while i<=length(Baux)
-                        if (Baux(i)>n)
-                            Baux(i)=[];
-                        else
-                            i=i+1;
-                        end
-                    end
-                    Baux=sort(Baux);
-                    x0=zeros(n,1);
-                    x0(Baux)=x(Baux);
+     %Quitamos las variables de holgura
+     i=1;
+     Baux=B;
+         while i<=length(Baux)
+             if (Baux(i)>n)
+             Baux(i)=[];
+             else
+             i=i+1;
+             end
+         end
+     Baux=sort(Baux);
+     x0=zeros(n,1);
+     x0(Baux)=x(Baux);
 
     else
+    %C2
     %Caso donde x0>0 y por lo tanto Cf es vacio
             ban=-1;
             x0=NaN;
@@ -95,28 +110,13 @@ end
 
 
 
+
+
 function [x, z0, ban, iterAct, B, N]= FaseII (A,b,c, x, B, N,n,m, iter)
-%purpose: Fase II empieza con una SBF y encuentra la SBF Ûptima junto con 
+%purpose: Fase II empieza con una SBF y encuentra la SBF √≥ptima junto con 
 % N y B
 % minimizar c^T x
-% sujeto a Ax= b , x >= 0 , b en R^m
-%
-% In : A ... mx(n+m) matrix
-% b ... column vector with as many rows as A
-% c ... column vector with as many entries as one row of A
-% x ... una SBF
-% B ... Ìndices de variables b·sicas
-% N ... Ìndices de variables no b·sicas
-% n ... variables en problema original
-% m ... restriciones en problema original
-%
-% Out: xo ... SFB Ûptima del problema
-% zo ... valor Ûptimo del problema
-% ban ... indica casos:
-% 0 ... si se encontro una soluciÛn Ûptima
-% 1 ... si la funciÛn objectivo no es acotada.
-% iter ... es el numer¥o de iteraciones (cambios de variables basicas)
-% que hizo el mÈtodo
+% sujeto a Ax= b , x >= 0 , b en R^n
 
 ban=0;
 ABInv=inv(A(:,B));
@@ -136,8 +136,8 @@ r=c(B)'*ABInv*A(:,N)-c(N)';
             aux=h./He;
             aux(aux<=0)=inf; 
             s=B(find(aux==min(aux),1));
-            %Acutalizamos los nuevos Ìndices que pertenecen (entrada y
-            %salida) de las variables b·sicas y no b·sicas
+            %Acutalizamos los nuevos √≠ndices que pertenecen (entrada y
+            %salida) de las variables b√°sicas y no b√°sicas
             B(B==s)=e;
             N(N==e)=s;
             ABInv=actInverseR1(A,B,b,x(B),ABInv,A(:,e)-A(:,s),A(:,B(B==e)));
@@ -161,7 +161,9 @@ r=c(B)'*ABInv*A(:,N)-c(N)';
     iterAct=iter;
 end
 
-%FunciÛn que actualiza la inversa usando Sherman-Morrison
+
+
+%Funci√≥n que actualiza la inversa usando Sherman-Morrison
 %Reinvierte en caso de ser necesario
 function [InvAct]=actInverseR1(A,B,b,h,AInv,u,v)
     tol=0.00001;
